@@ -1,7 +1,6 @@
 package model
 
 import (
-	"bytes"
 	"encoding/xml"
 	"net/http"
 )
@@ -25,11 +24,7 @@ type APIErrorResponse struct {
 }
 
 func (ar APIErrorResponse) Encode() []byte {
-	var bytesBuffer bytes.Buffer
-	bytesBuffer.WriteString(xml.Header)
-	e := xml.NewEncoder(&bytesBuffer)
-	e.Encode(ar)
-	return bytesBuffer.Bytes()
+	return encodeAny(ar)
 }
 
 var (

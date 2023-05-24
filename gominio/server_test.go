@@ -115,4 +115,13 @@ func TestObject(t *testing.T) {
 	data, err := io.ReadAll(oi)
 	require.NoError(t, err)
 	t.Log(string(data))
+
+	info, err = minioClient.FPutObject(context.Background(), "test", "volcano.zip",
+		"D:\\go\\codes\\sorce code\\volcano-1.7.0.zip", minio.PutObjectOptions{PartSize: 1024 * 1024 * 5})
+	require.NoError(t, err)
+	t.Log(info)
+
+	err = minioClient.FGetObject(context.Background(), "test", "volcano.zip",
+		"D:\\go\\codes\\sorce code\\volcano.zip", minio.GetObjectOptions{})
+	require.NoError(t, err)
 }

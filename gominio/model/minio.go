@@ -2,6 +2,8 @@ package model
 
 import (
 	"errors"
+	"github.com/google/uuid"
+	"sort"
 	"sync"
 	"time"
 )
@@ -38,10 +40,21 @@ type BucketInfo struct {
 }
 
 type ObjectInfo struct {
-	Name         string
-	Size         uint64
-	Data         string
+	Name string
+	Size uint64
+	Etag string
+	Data []byte
+
+	IsMultipart bool
+	UploadId    string
+	Parts       map[int]Multipart
+
 	LastModified time.Time
+}
+
+type Multipart struct {
+	Etag string
+	Data []byte
 }
 
 // BucketExists 存储桶是否存在
@@ -82,7 +95,8 @@ func (ms *MinioServer) DelBucket(bucket string, force bool) error {
 	return nil
 }
 
-func (ms *MinioServer) PutObject(bucket, object, content string) error {
+// PutObject 存储对象
+func (ms *MinioServer) PutObject(bucket, object, etag string, content []byte) error {
 	ms.Lock()
 	defer ms.Unlock()
 
@@ -95,12 +109,102 @@ func (ms *MinioServer) PutObject(bucket, object, content string) error {
 	bd.Objects[object] = &ObjectInfo{
 		Name:         object,
 		Size:         uint64(len(content)),
+		Etag:         etag,
 		Data:         content,
 		LastModified: time.Now(),
 	}
 	return nil
 }
 
+// PutObjectPart 存储分片
+func (ms *MinioServer) PutObjectPart(bucket, object, id, etag string, num int, content []byte) error {
+	ms.Lock()
+	defer ms.Unlock()
+
+	var ok bool
+	var bd *BucketData
+	if bd, ok = ms.Buckets[bucket]; !ok {
+		return errors.New("bucket not exists")
+	}
+
+	var oi *ObjectInfo
+	if oi, ok = bd.Objects[object]; !ok {
+		oi = &ObjectInfo{
+			Name:        object,
+			IsMultipart: true,
+			UploadId:    id,
+			Parts:       make(map[int]Multipart),
+		}
+		bd.Objects[object] = oi
+	}
+
+	if num != 0 && etag != "" {
+		oi.Parts[num] = Multipart{
+			Etag: etag,
+			Data: content,
+		}
+	}
+
+	return nil
+}
+
+// CompleteObjectPart 合并分片
+func (ms *MinioServer) CompleteObjectPart(bucket, object, id string, parts *CompleteMultiPart) (string, error) {
+	ms.Lock()
+	defer ms.Unlock()
+
+	var etag = GetUid()
+	var ok bool
+	var bd *BucketData
+	if bd, ok = ms.Buckets[bucket]; !ok {
+		return etag, errors.New("bucket not exists")
+	}
+
+	var oi *ObjectInfo
+	if oi, ok = bd.Objects[object]; !ok {
+		return etag, errors.New("object parts not exists")
+	}
+
+	if oi.UploadId != id {
+		return etag, errors.New("object not exists")
+	}
+
+	sort.Sort(parts)
+	for _, v := range parts.Parts {
+		var part Multipart
+		if part, ok = oi.Parts[v.PartNumber]; !ok {
+			return etag, errors.New("object parts not exists")
+		}
+		if part.Etag != v.ETag {
+			return etag, errors.New("object parts etag not same")
+		}
+		oi.Data = append(oi.Data, part.Data...)
+	}
+	oi.Etag = etag
+	oi.Size = uint64(len(oi.Data))
+	oi.LastModified = time.Now()
+	return etag, nil
+}
+
+// DeleteObject 删除对象和分片
+func (ms *MinioServer) DeleteObject(bucket, object string) error {
+	ms.Lock()
+	defer ms.Unlock()
+
+	var ok bool
+	var bd *BucketData
+	if bd, ok = ms.Buckets[bucket]; !ok {
+		return errors.New("bucket not exists")
+	}
+
+	if _, ok = bd.Objects[object]; !ok {
+		return errors.New("object not exists")
+	}
+	delete(bd.Objects, object)
+	return nil
+}
+
+// GetObject 获取对象
 func (ms *MinioServer) GetObject(bucket, object string) (*ObjectInfo, error) {
 	ms.RLock()
 	defer ms.RUnlock()
@@ -121,4 +225,15 @@ func (ms *MinioServer) GetObject(bucket, object string) (*ObjectInfo, error) {
 	}
 
 	return oi, nil
+}
+
+// GetUid 获取etag
+func GetUid() string {
+	var id string
+	uid, err := uuid.NewUUID()
+	if err != nil {
+		return id
+	}
+	id = uid.String()
+	return id
 }
