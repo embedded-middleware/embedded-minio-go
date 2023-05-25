@@ -9,16 +9,13 @@ import (
 
 var ms *MinioServer
 
-func InitMinioServer(access, secret string) {
-	ms = &MinioServer{
+func NewMinioServer(access, secret string) *MinioServer {
+	minio := &MinioServer{
 		Access:  access,
 		Secret:  secret,
 		Buckets: make(map[string]*BucketData),
 	}
-}
-
-func GetMS() *MinioServer {
-	return ms
+	return minio
 }
 
 type MinioServer struct {

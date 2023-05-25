@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// BucketExists 存储桶是否存在
+// BucketExists check bucket is exists
 func (ms *MinioServer) BucketExists(bucket string) bool {
 	ms.RLock()
 	defer ms.RUnlock()
@@ -31,7 +31,7 @@ func (ms *MinioServer) ListBucket() ListBucketsResponse {
 	return lr
 }
 
-// SetBucketPolicy 设置 bucket policy
+// SetBucketPolicy set bucket policy
 func (ms *MinioServer) SetBucketPolicy(bucket, policy string) bool {
 	ms.Lock()
 	defer ms.Unlock()
@@ -46,6 +46,7 @@ func (ms *MinioServer) SetBucketPolicy(bucket, policy string) bool {
 	return true
 }
 
+// GetBucketPolicy get bucket policy
 func (ms *MinioServer) GetBucketPolicy(bucket string) (string, bool) {
 	ms.Lock()
 	defer ms.Unlock()
@@ -61,7 +62,7 @@ func (ms *MinioServer) GetBucketPolicy(bucket string) (string, bool) {
 	return policy, true
 }
 
-// MakeBucket 创建bucket
+// MakeBucket create bucket
 func (ms *MinioServer) MakeBucket(bucket string) bool {
 	ms.Lock()
 	defer ms.Unlock()
@@ -77,7 +78,7 @@ func (ms *MinioServer) MakeBucket(bucket string) bool {
 	return true
 }
 
-// DelBucket 删除bucket
+// DelBucket delete bucket
 func (ms *MinioServer) DelBucket(bucket string, force bool) error {
 	ms.Lock()
 	defer ms.Unlock()
@@ -85,7 +86,7 @@ func (ms *MinioServer) DelBucket(bucket string, force bool) error {
 		return nil
 	}
 
-	// 如果不是强制删除, 那么如果存储桶有object存在，那么就会删除失败
+	// If the deletion is not mandatory, then if there are objects in the bucket, the deletion will fail
 	if bd, ok := ms.Buckets[bucket]; ok && len(bd.Objects) > 0 && !force {
 		return errors.New("bucket not empty")
 	}

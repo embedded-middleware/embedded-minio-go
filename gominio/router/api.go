@@ -9,25 +9,39 @@ import (
 	"strconv"
 )
 
-// RegisterApiRouter 注册S3请求的路由
-func RegisterApiRouter(router *gin.Engine) {
-	// Bucket相关路由
-	router.GET("/", ListBucket)
-	router.HEAD("/:bucket/", HeadBucket)
-	router.GET("/:bucket/", GetBucket)
-	router.PUT("/:bucket/", PutBucket)
-	router.DELETE("/:bucket/", DeleteBucket)
+type ApiServer struct {
+	ms *model.MinioServer
+}
+
+func (api *ApiServer) GetMS() *model.MinioServer {
+	return api.ms
+}
+
+// RegisterApiRouter register S3 requests routers
+func RegisterApiRouter(router *gin.Engine, minioServer *model.MinioServer) *ApiServer {
+	api := &ApiServer{
+		ms: minioServer,
+	}
+
+	// Bucket routers
+	router.GET("/", api.ListBucket)
+	router.HEAD("/:bucket/", api.HeadBucket)
+	router.GET("/:bucket/", api.GetBucket)
+	router.PUT("/:bucket/", api.PutBucket)
+	router.DELETE("/:bucket/", api.DeleteBucket)
+
+	return api
 }
 
 // HeadBucket head bucket
-func HeadBucket(ctx *gin.Context) {
+func (api *ApiServer) HeadBucket(ctx *gin.Context) {
 	var (
 		bucket string
 	)
 
 	bucket = ctx.Param("bucket")
-	if !model.GetMS().BucketExists(bucket) {
-		// bucket 不存在
+	if !api.GetMS().BucketExists(bucket) {
+		// Bucket not exists
 		ctx.Writer.WriteHeader(model.ErrNoSuchBucket.HTTPStatusCode)
 		return
 	}
@@ -35,15 +49,15 @@ func HeadBucket(ctx *gin.Context) {
 	SuccessResponse(ctx, http.StatusOK, nil)
 }
 
-// ListBucket 列出bucket
-func ListBucket(ctx *gin.Context) {
+// ListBucket list bucket
+func (api *ApiServer) ListBucket(ctx *gin.Context) {
 	// list bucket
-	lr := model.GetMS().ListBucket()
+	lr := api.GetMS().ListBucket()
 	SuccessResponse(ctx, http.StatusOK, lr.Encode())
 }
 
-// GetBucket 获取bucket的信息
-func GetBucket(ctx *gin.Context) {
+// GetBucket get bucket information
+func (api *ApiServer) GetBucket(ctx *gin.Context) {
 	var (
 		location   bool
 		policy     bool
@@ -60,8 +74,8 @@ func GetBucket(ctx *gin.Context) {
 	_, versioning = ctx.GetQuery("versioning")
 	if location || policy || lifecycle || encryption || versioning {
 		bucket = ctx.Param("bucket")
-		if !model.GetMS().BucketExists(bucket) {
-			// bucket 不存在
+		if !api.GetMS().BucketExists(bucket) {
+			// Bucket not exists
 			ErrResponse(ctx, "", bucket, model.ErrNoSuchBucket)
 			return
 		}
@@ -73,7 +87,7 @@ func GetBucket(ctx *gin.Context) {
 	}
 
 	if policy {
-		content, ok := model.GetMS().GetBucketPolicy(bucket)
+		content, ok := api.GetMS().GetBucketPolicy(bucket)
 		if !ok {
 			ErrResponse(ctx, "", bucket, model.ErrNoSuchBucket)
 			return
@@ -82,8 +96,8 @@ func GetBucket(ctx *gin.Context) {
 	}
 }
 
-// PutBucket 创建存储桶bucket
-func PutBucket(ctx *gin.Context) {
+// PutBucket create bucket
+func (api *ApiServer) PutBucket(ctx *gin.Context) {
 	var (
 		policy     bool
 		lifecycle  bool
@@ -100,8 +114,8 @@ func PutBucket(ctx *gin.Context) {
 	_, versioning = ctx.GetQuery("versioning")
 	if policy || lifecycle || encryption || versioning {
 		bucket = ctx.Param("bucket")
-		if !model.GetMS().BucketExists(bucket) {
-			// bucket 不存在
+		if !api.GetMS().BucketExists(bucket) {
+			// Bucket not exists
 			ErrResponse(ctx, "", bucket, model.ErrNoSuchBucket)
 			return
 		}
@@ -114,7 +128,7 @@ func PutBucket(ctx *gin.Context) {
 	}
 
 	if policy {
-		ok := model.GetMS().SetBucketPolicy(bucket, string(content))
+		ok := api.GetMS().SetBucketPolicy(bucket, string(content))
 		if !ok {
 			ErrResponse(ctx, "", bucket, model.ErrBucketAlreadyOwnedByYou)
 			return
@@ -124,7 +138,7 @@ func PutBucket(ctx *gin.Context) {
 	}
 
 	bucket = ctx.Param("bucket")
-	if !model.GetMS().MakeBucket(bucket) {
+	if !api.GetMS().MakeBucket(bucket) {
 		// bucket exists
 		ErrResponse(ctx, "", bucket, model.ErrBucketAlreadyOwnedByYou)
 		return
@@ -133,8 +147,8 @@ func PutBucket(ctx *gin.Context) {
 	SuccessResponse(ctx, http.StatusOK, nil)
 }
 
-// DeleteBucket 删除存储桶
-func DeleteBucket(ctx *gin.Context) {
+// DeleteBucket delete bucket
+func (api *ApiServer) DeleteBucket(ctx *gin.Context) {
 	var (
 		bucket string
 		force  bool
@@ -152,7 +166,7 @@ func DeleteBucket(ctx *gin.Context) {
 			return
 		}
 	}
-	err = model.GetMS().DelBucket(bucket, force)
+	err = api.GetMS().DelBucket(bucket, force)
 	if err != nil {
 		ErrResponse(ctx, "", bucket, model.ErrBucketNotEmpty)
 		return
@@ -161,7 +175,7 @@ func DeleteBucket(ctx *gin.Context) {
 	SuccessResponse(ctx, http.StatusNoContent, nil)
 }
 
-// SuccessResponse 成功响应
+// SuccessResponse success response
 func SuccessResponse(ctx *gin.Context, status int, data []byte) {
 	ctx.Writer.WriteHeader(status)
 	_, err := ctx.Writer.Write(data)
@@ -170,7 +184,7 @@ func SuccessResponse(ctx *gin.Context, status int, data []byte) {
 	}
 }
 
-// ErrResponse 统一处理失败响应
+// ErrResponse error response
 func ErrResponse(ctx *gin.Context, key, bucket string, apiErr model.APIError) {
 	apiRsp := model.APIErrorResponse{
 		Code:       apiErr.Code,

@@ -46,7 +46,7 @@ func newServer(access, secret string) (*Server, error) {
 func TestBucket(t *testing.T) {
 	server, err := newServer("minioadmin", "minioadmin")
 	require.NoError(t, err)
-	//defer server.Close()
+	defer server.Close()
 
 	// Initialize minio client object.
 	minioClient, err := minio.New(fmt.Sprintf("127.0.0.1:%d", server.config.Port), &minio.Options{
@@ -54,7 +54,7 @@ func TestBucket(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// test list bucket
+	// Test make bucket
 	err = minioClient.MakeBucket(context.Background(), "test", minio.MakeBucketOptions{})
 	require.NoError(t, err)
 
@@ -65,18 +65,18 @@ func TestBucket(t *testing.T) {
 	t.Log(err)
 	require.NotNil(t, err)
 
-	// test list bucket
+	// Test list bucket
 	bi, err := minioClient.ListBuckets(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, 2, len(bi))
 	t.Log(bi)
 
-	// test bucket location
+	// Test get bucket location
 	location, err := minioClient.GetBucketLocation(context.Background(), "test")
 	require.NoError(t, err)
 	require.Equal(t, "us-east-1", location)
 
-	// test bucket policy
+	// Test bucket policy
 	policy := "test policy"
 	err = minioClient.SetBucketPolicy(context.Background(), "test", policy)
 	require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestBucket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "", pl)
 
-	// test bucket exists
+	// Test bucket exists
 	ok, err := minioClient.BucketExists(context.Background(), "test")
 	require.NoError(t, err)
 	require.Equal(t, true, ok)
@@ -102,7 +102,7 @@ func TestBucket(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, false, ok)
 
-	// test bucket remove
+	// Test bucket remove
 	err = minioClient.RemoveBucket(context.Background(), "test")
 	require.NoError(t, err)
 
