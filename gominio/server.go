@@ -3,15 +3,11 @@ package gominio
 import (
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
-
-	"embedded-minio-go/gominio/model"
-	"embedded-minio-go/gominio/router"
 )
 
 type ConfigValue struct {
@@ -26,8 +22,8 @@ type ServerConfig struct {
 
 type Server struct {
 	config *ServerConfig
-	minio  *model.MinioServer
-	api    *router.ApiServer
+	minio  *MinioServer
+	api    *ApiServer
 	router *gin.Engine
 	server *http.Server
 	done   chan struct{}
@@ -47,10 +43,10 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 // Start starts the server and returns the listen port.
 func (s *Server) Start() (int, error) {
 	// New minio server
-	s.minio = model.NewMinioServer(s.config.Access, s.config.Secret)
+	s.minio = NewMinioServer(s.config.Access, s.config.Secret)
 
 	// Define routes
-	s.api = router.RegisterApiRouter(s.router, s.minio)
+	s.api = RegisterApiRouter(s.router, s.minio)
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
 	if err != nil {

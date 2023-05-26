@@ -1,7 +1,6 @@
-package router
+package gominio
 
 import (
-	"embedded-minio-go/gominio/model"
 	"github.com/gin-gonic/gin"
 	"io"
 	"log"
@@ -10,15 +9,15 @@ import (
 )
 
 type ApiServer struct {
-	ms *model.MinioServer
+	ms *MinioServer
 }
 
-func (api *ApiServer) GetMS() *model.MinioServer {
+func (api *ApiServer) GetMS() *MinioServer {
 	return api.ms
 }
 
 // RegisterApiRouter register S3 requests routers
-func RegisterApiRouter(router *gin.Engine, minioServer *model.MinioServer) *ApiServer {
+func RegisterApiRouter(router *gin.Engine, minioServer *MinioServer) *ApiServer {
 	api := &ApiServer{
 		ms: minioServer,
 	}
@@ -42,7 +41,7 @@ func (api *ApiServer) HeadBucket(ctx *gin.Context) {
 	bucket = ctx.Param("bucket")
 	if !api.GetMS().BucketExists(bucket) {
 		// Bucket not exists
-		ctx.Writer.WriteHeader(model.ErrNoSuchBucket.HTTPStatusCode)
+		ctx.Writer.WriteHeader(ErrNoSuchBucket.HTTPStatusCode)
 		return
 	}
 
@@ -76,20 +75,20 @@ func (api *ApiServer) GetBucket(ctx *gin.Context) {
 		bucket = ctx.Param("bucket")
 		if !api.GetMS().BucketExists(bucket) {
 			// Bucket not exists
-			ErrResponse(ctx, "", bucket, model.ErrNoSuchBucket)
+			ErrResponse(ctx, "", bucket, ErrNoSuchBucket)
 			return
 		}
 	}
 
 	if location {
-		SuccessResponse(ctx, http.StatusOK, model.LocationResponse{}.Encode())
+		SuccessResponse(ctx, http.StatusOK, LocationResponse{}.Encode())
 		return
 	}
 
 	if policy {
 		content, ok := api.GetMS().GetBucketPolicy(bucket)
 		if !ok {
-			ErrResponse(ctx, "", bucket, model.ErrNoSuchBucket)
+			ErrResponse(ctx, "", bucket, ErrNoSuchBucket)
 			return
 		}
 		SuccessResponse(ctx, http.StatusOK, []byte(content))
@@ -116,13 +115,13 @@ func (api *ApiServer) PutBucket(ctx *gin.Context) {
 		bucket = ctx.Param("bucket")
 		if !api.GetMS().BucketExists(bucket) {
 			// Bucket not exists
-			ErrResponse(ctx, "", bucket, model.ErrNoSuchBucket)
+			ErrResponse(ctx, "", bucket, ErrNoSuchBucket)
 			return
 		}
 
 		content, err = io.ReadAll(ctx.Request.Body)
 		if err != nil {
-			ErrResponse(ctx, "", bucket, model.ErrInvalidRequest)
+			ErrResponse(ctx, "", bucket, ErrInvalidRequest)
 			return
 		}
 	}
@@ -130,7 +129,7 @@ func (api *ApiServer) PutBucket(ctx *gin.Context) {
 	if policy {
 		ok := api.GetMS().SetBucketPolicy(bucket, string(content))
 		if !ok {
-			ErrResponse(ctx, "", bucket, model.ErrBucketAlreadyOwnedByYou)
+			ErrResponse(ctx, "", bucket, ErrBucketAlreadyOwnedByYou)
 			return
 		}
 		SuccessResponse(ctx, http.StatusNoContent, nil)
@@ -140,7 +139,7 @@ func (api *ApiServer) PutBucket(ctx *gin.Context) {
 	bucket = ctx.Param("bucket")
 	if !api.GetMS().MakeBucket(bucket) {
 		// bucket exists
-		ErrResponse(ctx, "", bucket, model.ErrBucketAlreadyOwnedByYou)
+		ErrResponse(ctx, "", bucket, ErrBucketAlreadyOwnedByYou)
 		return
 	}
 
@@ -160,7 +159,7 @@ func (api *ApiServer) DeleteBucket(ctx *gin.Context) {
 	if forceArg != "" {
 		force, err = strconv.ParseBool(forceArg)
 		if err != nil {
-			apiErr := model.ErrInvalidRequest
+			apiErr := ErrInvalidRequest
 			apiErr.Description = err.Error()
 			ErrResponse(ctx, "", bucket, apiErr)
 			return
@@ -168,7 +167,7 @@ func (api *ApiServer) DeleteBucket(ctx *gin.Context) {
 	}
 	err = api.GetMS().DelBucket(bucket, force)
 	if err != nil {
-		ErrResponse(ctx, "", bucket, model.ErrBucketNotEmpty)
+		ErrResponse(ctx, "", bucket, ErrBucketNotEmpty)
 		return
 	}
 
@@ -185,8 +184,8 @@ func SuccessResponse(ctx *gin.Context, status int, data []byte) {
 }
 
 // ErrResponse error response
-func ErrResponse(ctx *gin.Context, key, bucket string, apiErr model.APIError) {
-	apiRsp := model.APIErrorResponse{
+func ErrResponse(ctx *gin.Context, key, bucket string, apiErr APIError) {
+	apiRsp := APIErrorResponse{
 		Code:       apiErr.Code,
 		Message:    apiErr.Description,
 		Key:        key,

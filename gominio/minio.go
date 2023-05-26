@@ -1,4 +1,4 @@
-package model
+package gominio
 
 import (
 	"bytes"
@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 )
-
-var ms *MinioServer
 
 func NewMinioServer(access, secret string) *MinioServer {
 	minio := &MinioServer{
