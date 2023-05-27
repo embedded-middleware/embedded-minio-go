@@ -22,11 +22,13 @@ type ServerConfig struct {
 
 type Server struct {
 	config *ServerConfig
-	minio  *MinioServer
-	api    *ApiServer
 	router *gin.Engine
 	server *http.Server
-	done   chan struct{}
+
+	minio *MinioServer
+	api   *ApiServer
+
+	done chan struct{}
 }
 
 func NewServer(cfg *ServerConfig) (*Server, error) {
