@@ -15,11 +15,15 @@ type ConfigValue struct {
 }
 
 type ServerConfig struct {
-	Port int
+	Access string
+	Secret string
+	Port   int
 }
 
 type Server struct {
 	config *ServerConfig
+	minio  *MinioServer
+	api    *ApiServer
 	router *gin.Engine
 	server *http.Server
 	done   chan struct{}
@@ -38,7 +42,11 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 
 // Start starts the server and returns the listen port.
 func (s *Server) Start() (int, error) {
+	// New minio server
+	s.minio = NewMinioServer(s.config.Access, s.config.Secret)
+
 	// Define routes
+	s.api = RegisterApiRouter(s.router, s.minio)
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
 	if err != nil {
