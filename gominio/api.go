@@ -34,11 +34,7 @@ func RegisterApiRouter(router *gin.Engine, minioServer *MinioServer) *ApiServer 
 
 // HeadBucket head bucket
 func (api *ApiServer) HeadBucket(ctx *gin.Context) {
-	var (
-		bucket string
-	)
-
-	bucket = ctx.Param("bucket")
+	bucket := ctx.Param("bucket")
 	if !api.GetMS().BucketExists(bucket) {
 		// Bucket not exists
 		ctx.Writer.WriteHeader(ErrNoSuchBucket.HTTPStatusCode)
