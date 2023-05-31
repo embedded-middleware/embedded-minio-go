@@ -68,8 +68,7 @@ func encodeAny(v any) []byte {
 }
 
 func decodeAny(r io.Reader, v any) {
-	var err error
-	err = xml.NewDecoder(r).Decode(v)
+	err := xml.NewDecoder(r).Decode(v)
 	if err != nil {
 		return
 	}
