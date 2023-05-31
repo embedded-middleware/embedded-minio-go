@@ -3,6 +3,8 @@ package gominio
 import (
 	"bytes"
 	"encoding/xml"
+	"github.com/minio/minio-go/v7/pkg/tags"
+	"io"
 	"sync"
 	"time"
 )
@@ -40,6 +42,7 @@ type ObjectInfo struct {
 	Size uint64
 	Etag string
 	Data []byte
+	Tags *tags.Tags
 
 	IsMultipart bool
 	UploadId    string
@@ -62,4 +65,12 @@ func encodeAny(v any) []byte {
 		return nil
 	}
 	return bytesBuffer.Bytes()
+}
+
+func decodeAny(r io.Reader, v any) {
+	var err error
+	err = xml.NewDecoder(r).Decode(v)
+	if err != nil {
+		return
+	}
 }
